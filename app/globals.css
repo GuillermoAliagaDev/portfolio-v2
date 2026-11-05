@@ -18,20 +18,30 @@ body {
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
 }
 
-/* headline letters: rise in from below with a blur, or lift away when the word changes */
+/* headline letters: they rise out of their line with a small tilt and a soft landing, and lift away when the word changes */
 @keyframes hl-in {
-  from { opacity: 0; transform: translateY(0.45em); filter: blur(10px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
+  from { transform: translateY(115%) rotate(7deg); filter: blur(6px); }
+  60% { filter: blur(0); }
+  to { transform: none; filter: blur(0); }
 }
 @keyframes hl-out {
-  from { opacity: 1; transform: none; filter: blur(0); }
-  to { opacity: 0; transform: translateY(-0.45em); filter: blur(10px); }
+  from { transform: none; filter: blur(0); }
+  to { transform: translateY(-115%) rotate(-7deg); filter: blur(6px); }
 }
-.hl-in { opacity: 0; animation: hl-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) forwards; }
-.hl-out { animation: hl-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) var(--d, 0ms) forwards; }
+.hl-in { transform: translateY(115%); animation: hl-in 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) forwards; }
+.hl-out { animation: hl-out 0.5s cubic-bezier(0.55, 0, 0.85, 0.3) var(--d, 0ms) forwards; }
+
+/* word scramble: loose letters are dim turquoise; a letter flashes and glows for a moment as it settles */
+.sc-flicker { color: #4ee6c4; opacity: 0.55; }
+@keyframes sc-land {
+  0% { color: #4ee6c4; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(78, 230, 196, 0.9); }
+  100% { color: #fff; opacity: 1; transform: none; text-shadow: 0 0 0 rgba(78, 230, 196, 0); }
+}
+.sc-set { animation: sc-land 0.45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .sc-flicker, .sc-set { color: #fff; opacity: 1; animation: none; } }
 
 html, body { overscroll-behavior: none; }
 body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .hl-in, .hl-out { animation: none; opacity: 1; }
+  .hl-in, .hl-out { animation: none; transform: none; }
 }
