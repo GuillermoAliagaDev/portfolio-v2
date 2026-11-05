@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio v2
 
-## Getting Started
+Developer portfolio. The landing intro is a live WebGL black hole (gravitational lensing shader plus a Blender-designed disk of orbs) drawn as a 1-bit halftone dot picture. Drag to orbit it, tap to fall in. The headline above it types on and cycles the word in the braces.
 
-First, run the development server:
+Built with Next.js 16 (App Router), React 19, TypeScript and Tailwind CSS 4. No runtime dependencies besides Next and React.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # production build
+npm run start    # serve the production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Needs Node 20.9 or newer.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push this repository to GitHub.
+2. In Vercel choose **Add New → Project**, import the repository and keep the defaults (Framework: Next.js, build command `next build`).
+3. Deploy. There are no environment variables to set.
 
-## Learn More
+The fonts (LINE Seed JP, Bitcount Grid Double, Geist Mono) are fetched from Google Fonts at build time and served from your own domain.
 
-To learn more about Next.js, take a look at the following resources:
+## Where things are
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/` routing only; `modules/landing/` is the landing feature (components, hooks, constants, services, mappers, types).
+- `modules/landing/constants/headlineWords.ts` the words that cycle in the headline.
+- `modules/landing/constants/blackHoleShader.ts` the lensing shader and the sky.
+- `components/ascii/` the dot and text renderers; `hooks/` and `lib/` are shared helpers.
+- `public/models/black-hole-orbs.glb` and `public/textures/bh-particles.png` are generated from `design/` (Blender scripts and the `.blend` source).
