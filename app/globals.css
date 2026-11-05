@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #e8e8e3;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-line-seed);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+}
+
+/* headline letters: rise in from below with a blur, or lift away when the word changes */
+@keyframes hl-in {
+  from { opacity: 0; transform: translateY(0.45em); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes hl-out {
+  from { opacity: 1; transform: none; filter: blur(0); }
+  to { opacity: 0; transform: translateY(-0.45em); filter: blur(10px); }
+}
+.hl-in { opacity: 0; animation: hl-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) forwards; }
+.hl-out { animation: hl-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) var(--d, 0ms) forwards; }
+
+html, body { overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .hl-in, .hl-out { animation: none; opacity: 1; }
 }
