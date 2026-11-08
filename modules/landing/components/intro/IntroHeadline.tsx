@@ -44,7 +44,10 @@ function Line({ children, className = "" }: { children: ReactNode; className?: s
 // the word while it decodes: letters that have not settled yet are dim turquoise, and each one flashes as it lands
 function ScrambleRows({ cells }: { cells: ScrambleCell[] }) {
   const rows: ScrambleCell[][] = [[]];
-  for (const c of cells) c.ch === "\n" ? rows.push([]) : rows[rows.length - 1].push(c);
+  for (const c of cells) {
+    if (c.ch === "\n") rows.push([]);
+    else rows[rows.length - 1].push(c);
+  }
   return (
     <>
       {rows.map((row, r) => (
@@ -98,12 +101,10 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
   const size = "text-[clamp(2.5rem,9.5vw,5.625rem)] leading-[1.05] font-[family-name:var(--font-line-seed)] font-bold text-white";
   const fade = `transition-[opacity,filter,transform] duration-700 ease-out ${visible ? "opacity-100" : "opacity-0 blur-md"}`;
 
-  let at = FIRST_LETTER_MS;
-  const leadLines = HEADLINE_LINES.map((line) => {
-    const start = at;
-    at += line.length * LINE_STEP;
-    return { line, start };
-  });
+  const leadLines = HEADLINE_LINES.map((line, i) => ({
+    line,
+    start: FIRST_LETTER_MS + HEADLINE_LINES.slice(0, i).reduce((sum, l) => sum + l.length * LINE_STEP, 0),
+  }));
   const wordStart = WORD_START_MS;
   const sigStart = wordStart + 500;
 
