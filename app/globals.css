@@ -31,14 +31,15 @@ body {
 .hl-in { transform: translateY(115%); animation: hl-in 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) forwards; }
 .hl-out { animation: hl-out 0.5s cubic-bezier(0.55, 0, 0.85, 0.3) var(--d, 0ms) forwards; }
 
-/* word scramble: loose letters are dim turquoise; a letter flashes and glows for a moment as it settles */
-.sc-flicker { color: #4ee6c4; opacity: 0.55; }
+/* word scramble: loose letters are dim green; a letter flashes and glows for a moment as it settles */
+:root { --word-color: #2ceaa3; }
+.sc-flicker { color: var(--word-color); opacity: 0.5; }
 @keyframes sc-land {
-  0% { color: #4ee6c4; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(78, 230, 196, 0.9); }
-  100% { color: #fff; opacity: 1; transform: none; text-shadow: 0 0 0 rgba(78, 230, 196, 0); }
+  0% { color: #cffff0; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(44, 234, 163, 0.9); }
+  100% { color: var(--word-color); opacity: 1; transform: none; text-shadow: 0 0 0 rgba(44, 234, 163, 0); }
 }
 .sc-set { animation: sc-land 0.45s ease-out; }
-@media (prefers-reduced-motion: reduce) { .sc-flicker, .sc-set { color: #fff; opacity: 1; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sc-flicker, .sc-set { color: var(--word-color); opacity: 1; animation: none; } }
 
 html, body { overscroll-behavior: none; }
 body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }

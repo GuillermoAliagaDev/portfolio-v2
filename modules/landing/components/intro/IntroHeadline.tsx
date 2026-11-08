@@ -48,7 +48,7 @@ function ScrambleRows({ cells }: { cells: ScrambleCell[] }) {
   return (
     <>
       {rows.map((row, r) => (
-        <Line key={r} className="min-h-[1.05em] whitespace-pre font-[family-name:var(--font-bitcount)] font-medium">
+        <Line key={r} className="min-h-[1.05em] whitespace-pre font-[family-name:var(--font-bitcount)] font-medium text-[var(--word-color)]">
           {row.length === 0 && "\u00a0"}
           {row.map((c, i) => (
             <span key={i} aria-hidden className={`inline-block ${c.settled ? "sc-set" : "sc-flicker"}`}>
@@ -122,7 +122,7 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
         {!scramble && word.split("\n").map((row, r, rows) => {
           const before = rows.slice(0, r).join("").length; // letters on the rows above, so the stagger carries on down
           return (
-            <Line key={`${word}-${r}`} className="font-[family-name:var(--font-bitcount)] font-medium">
+            <Line key={`${word}-${r}`} className="font-[family-name:var(--font-bitcount)] font-medium text-[var(--word-color)]">
               {row.split(" ").map((part, i, parts) => (
                 // each word stays whole when a line wraps
                 <span key={i} className={`inline-block whitespace-nowrap ${i < parts.length - 1 ? "mr-[0.25em]" : ""}`}>
