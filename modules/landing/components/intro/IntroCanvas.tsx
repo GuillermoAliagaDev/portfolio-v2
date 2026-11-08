@@ -2,9 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AsciiGrid } from "@/components/ascii/AsciiGrid";
 import { DotMatrix } from "@/components/ascii/DotMatrix";
+import { createPixelSampler, frameStamp } from "@/components/ascii/pixelSampler";
 import { useInView } from "@/hooks/useInView";
 import { canUseWebGL } from "@/lib/canUseWebGL";
 import { CELL_H, CELL_W } from "../../constants/asciiCell";
+import { useAdaptiveQuality } from "../../hooks/useAdaptiveQuality";
 import { useBlackHole } from "../../hooks/useBlackHole";
 import { useOrbModel } from "../../hooks/useOrbModel";
 import { useIntroSequence } from "../../hooks/useIntroSequence";
@@ -35,6 +37,7 @@ const SKY_HUES = [
   [1.0, 220, 90, 30],
 ] as const;
 const DOT_PITCH = 2; // size of one dot in CSS px
+const DOT_PITCH_LIGHT = 3; // on slow devices (quality step 2): about 2x fewer dots to work out each frame
 // dot colour by brightness, like heated gas: embers at the cool outer edge -> orange -> gold -> white-hot at the ring
 const DOT_PALETTE = [
   [0.0, 150, 35, 8],
@@ -56,11 +59,16 @@ export function IntroCanvas() {
   const [supported, setSupported] = useState<boolean | null>(null); // null until checked on the client
   const [model, setModel] = useState<HoleModel | null>(null);
   const [ready, setReady] = useState(false);
+  const [forcedQuality, setForcedQuality] = useState<number | null>(null); // ?quality=0|1|2 pins a level, for testing
+  const [sampler] = useState(createPixelSampler); // one pixel readback per frame, shared by both dot layers
   const [held, setHeld] = useState(false); // a finger or button is down: the words step aside so only the black hole shows
 
   useEffect(() => {
     setSupported(canUseWebGL());
-    setModel(new URLSearchParams(window.location.search).get("hole") === "lensing" ? "lensing" : "orbs");
+    const query = new URLSearchParams(window.location.search);
+    setModel(query.get("hole") === "lensing" ? "lensing" : "orbs");
+    const q = Number(query.get("quality"));
+    setForcedQuality(query.has("quality") && q >= 0 && q <= 2 ? Math.round(q) : null);
   }, []);
 
   const live = supported === true && !reduced && model !== null;
@@ -68,7 +76,8 @@ export function IntroCanvas() {
   // if the orb model cannot be loaded, fall back to the lensing shader on its own instead of an empty screen
   const onOrbsFail = useCallback(() => setModel("lensing"), []);
   const lensing = useBlackHole(ref, live && model === "lensing", onFail);
-  const orbs = useOrbModel(ref, live && model === "orbs", onOrbsFail);
+  const quality = useAdaptiveQuality(live && inView && phase !== "revealed", forcedQuality);
+  const orbs = useOrbModel(ref, live && model === "orbs", onOrbsFail, quality);
   const blackHole = model === "orbs" ? orbs : lensing;
   const { frame, startBoom, setHeld: holdCamera } = blackHole;
 
@@ -85,8 +94,8 @@ export function IntroCanvas() {
   const shared = useRef<{ at: number; canvas: HTMLCanvasElement | null }>({ at: -1, canvas: null });
   const getSource = useCallback(() => {
     if (phaseRef.current === "revealed") return null;
-    const now = performance.now();
-    if (now - shared.current.at < 4) return shared.current.canvas;
+    const now = frameStamp(); // the same for everything drawn in this display frame: the picture is rendered once, not once per layer
+    if (now === shared.current.at) return shared.current.canvas;
     const canvas = frame();
     shared.current = { at: now, canvas };
     if (canvas && !readyRef.current) {
@@ -112,6 +121,7 @@ export function IntroCanvas() {
   return (
     <section
       ref={ref}
+      data-quality={quality}
       className="relative h-svh w-full overflow-hidden bg-background"
       onPointerMove={(e) => {
         if (label.current) label.current.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 14}px)`;
@@ -123,7 +133,9 @@ export function IntroCanvas() {
             getSource={getSource}
             running={live && inView}
             channel="red"
-            pitch={DOT_PITCH}
+            pitch={quality >= 2 ? DOT_PITCH_LIGHT : DOT_PITCH}
+            sampler={sampler}
+            maxFps={quality >= 2 ? 30 : 0}
             palette={DOT_PALETTE}
             shimmer={0.18}
             className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-1000 ${ready || reduced ? "opacity-100" : "opacity-0"}`}
@@ -133,7 +145,9 @@ export function IntroCanvas() {
               getSource={getSource}
               running={live && inView}
               channel="green"
-              pitch={DOT_PITCH}
+              pitch={quality >= 2 ? DOT_PITCH_LIGHT : DOT_PITCH}
+            sampler={sampler}
+            maxFps={quality >= 2 ? 30 : 0}
               hues={SKY_HUES}
               shimmer={0.15}
               gamma={0.7}

@@ -28,6 +28,7 @@ uniform float uRingW;     // photon ring width multiplier
 uniform float uBase;      // 1 = draw the black hole, 0 = only the caustic
 uniform float uBoom;      // explosion progress 0..1, or -1 when idle
 uniform float uOrbDisk;   // 1 = the flat part of the disk is drawn by the orb model: keep only the far side bent over the shadow, cross-faded
+uniform float uLite;      // 0 = everything, 1 = no second plasma layer or faint stars, 2 = also no galaxy specks or arcs (slow devices)
 uniform float uArchM;     // inside this screen radius (in M) the far side of the disk is bent over the shadow and is drawn here
 
 const float PI = 3.14159265;
@@ -287,7 +288,7 @@ void plasmaLayer(vec2 sky, float scale, vec2 seed, float strength, float hueLo, 
 }
 void colorNebula(vec2 sky, inout float W, inout float Hs) {
   plasmaLayer(sky, 9.0, vec2(0.0), NEBULA_STRENGTH, 0.2, 0.34, W, Hs);                  // turquoise and green clouds
-  plasmaLayer(sky, 6.5, vec2(31.7, -14.2), 0.85 * NEBULA_STRENGTH, 0.36, 0.5, W, Hs);   // a second layer in other places: blue-purple and purple
+  if (uLite < 0.5) plasmaLayer(sky, 6.5, vec2(31.7, -14.2), 0.85 * NEBULA_STRENGTH, 0.36, 0.5, W, Hs);   // a second layer in other places: blue-purple and purple
 }
 
 vec3 blackHole(vec2 q, float pixM) {
@@ -378,14 +379,14 @@ vec3 blackHole(vec2 q, float pixM) {
     float W = 0.0, Hs = 0.0;
     gCluster = 0.25 + 1.5 * fbm(sFar * 5.0 + 3.7);
     colorNebula(sFar, W, Hs);
-    galaxyLayer(sFar, 0.009, 0.10, 0.0007, 0.0011, 31.0, pixM, W, Hs);   // faint specks
+    if (uLite < 1.5) galaxyLayer(sFar, 0.009, 0.10, 0.0007, 0.0011, 31.0, pixM, W, Hs);   // faint specks
     galaxyLayer(sMid, 0.016, 0.13, 0.0009, 0.0020, 7.0, pixM, W, Hs);    // the galaxies
     bigGalaxyLayer(sMid, 61.0, W, Hs);
     vec2 cl = vec2(-0.15, -0.055);                                        // lensing cluster whose arcs we see
     float arcs = 0.6 * (0.9 * arcAt(sMid, cl, 0.045, 0.9, 0.55, 0.0011) + 0.8 * arcAt(sMid, cl, 0.075, 3.4, 0.45, 0.0012)
                       + 0.7 * arcAt(sMid, cl, 0.030, 5.2, 0.40, 0.0010) + 0.6 * arcAt(sMid, cl, 0.058, 2.1, 0.30, 0.0009));
-    addSky(arcs, 0.9, W, Hs);
-    starLayer2(sFar, 0.0045, 0.05, 0.0009, 0.45, 19.0, pixM, 0.0, W, Hs);   // faint stars
+    if (uLite < 1.5) addSky(arcs, 0.9, W, Hs);
+    if (uLite < 0.5) starLayer2(sFar, 0.0045, 0.05, 0.0009, 0.45, 19.0, pixM, 0.0, W, Hs);   // faint stars
     starLayer2(sMid, 0.0065, 0.04, 0.0011, 0.9, 53.0, pixM, 0.0, W, Hs);
     starLayer2(sNear, 0.025, 0.22, 0.0014, 1.5, 77.0, pixM, 0.0, W, Hs);
     starLayer2(sNear, 0.12, 0.5, 0.0013, 2.0, 91.0, pixM, 1.0, W, Hs);   // bright stars with diffraction spikes

@@ -1,6 +1,7 @@
 "use client";
 import { CSSProperties, useEffect, useRef } from "react";
 import type { AsciiSource } from "./asciiTypes";
+import { PixelSampler, createPixelSampler } from "./pixelSampler";
 
 // 8x8 ordered-dither (Bayer) matrix, values 0..63
 const BAYER8 = [
@@ -32,6 +33,10 @@ type Props = {
   channel?: "luma" | "red" | "green";
   /** below 1 makes dim areas denser */
   gamma?: number;
+  /** layers that look at the same picture can share one, so the pixels are read back from the GPU once per frame */
+  sampler?: PixelSampler;
+  /** cap on how often the layer is redrawn (0 or left out = every display frame) */
+  maxFps?: number;
   className?: string;
   style?: CSSProperties;
 };
@@ -39,15 +44,18 @@ type Props = {
 // 1-bit halftone layer: the source is shrunk to one pixel per dot, thresholded against a Bayer matrix and drawn as
 // crisp square dots (like a Game Boy / newspaper print). It is its own layer: give it a channel so it and an ASCII
 // grid show different parts of the same picture instead of drawing over each other.
-export function DotMatrix({ getSource, running, pitch = 3, color = "255 255 255", palette, hues, shimmer = 0, channel = "luma", gamma = 0.55, className, style }: Props) {
+export function DotMatrix({ getSource, running, pitch = 3, color = "255 255 255", palette, hues, shimmer = 0, channel = "luma", gamma = 0.55, sampler, maxFps = 0, className, style }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const fpsCap = useRef(maxFps);
+  useEffect(() => {
+    fpsCap.current = maxFps; // read each frame, so changing it does not restart the layer
+  }, [maxFps]);
 
   useEffect(() => {
     const el = canvas.current;
     const parent = el?.parentElement;
     if (!el || !parent) return;
-    const small = document.createElement("canvas");
-    const sctx = small.getContext("2d", { willReadFrequently: true })!;
+    const reader = sampler ?? createPixelSampler();
     const ctx = el.getContext("2d")!;
     const [cr, cg, cb] = color.split(" ").map(Number);
     const buildLut = (stops: readonly (readonly [number, number, number, number])[] | undefined) => {
@@ -81,31 +89,26 @@ export function DotMatrix({ getSource, running, pitch = 3, color = "255 255 255"
       const h = Math.max(1, Math.ceil(parent.clientHeight / pitch));
       if (w === size.w && h === size.h) return;
       size = { w, h };
-      el.width = small.width = w;
-      el.height = small.height = h;
+      el.width = w;
+      el.height = h;
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(parent);
 
+    let lastDraw = 0;
     const frame = () => {
+      const t = performance.now();
+      if (running && fpsCap.current > 0 && t - lastDraw < 1000 / fpsCap.current - 3) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      lastDraw = t;
       const { w, h } = size;
-      const now = Math.floor(performance.now() / 90); // shimmer steps ~11 times a second
-      sctx.fillStyle = "#000";
-      sctx.fillRect(0, 0, w, h);
-      const source = getSource();
-      const isVideo = source instanceof HTMLVideoElement;
-      const sw = !source ? 0 : isVideo ? source.videoWidth : source.width;
-      const sh = !source ? 0 : isVideo ? source.videoHeight : source.height;
+      const now = Math.floor(t / 90); // shimmer steps ~11 times a second
       const out = ctx.createImageData(w, h);
-      if (source && sw > 0 && sh > 0) {
-        // object-fit: cover
-        const aspect = w / h;
-        const srcAspect = sw / sh;
-        const cw = srcAspect > aspect ? sh * aspect : sw;
-        const ch = srcAspect > aspect ? sh : sw / aspect;
-        sctx.drawImage(source, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, h);
-        const px = sctx.getImageData(0, 0, w, h).data;
+      const px = reader.read(getSource(), w, h);
+      if (px) {
         for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
             const i = (y * w + x) * 4;
@@ -146,7 +149,7 @@ export function DotMatrix({ getSource, running, pitch = 3, color = "255 255 255"
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [getSource, running, pitch, color, palette, hues, shimmer, channel, gamma]);
+  }, [getSource, running, pitch, color, palette, hues, shimmer, channel, gamma, sampler]);
 
   return <canvas ref={canvas} aria-hidden className={className} style={{ imageRendering: "pixelated", ...style }} />;
 }

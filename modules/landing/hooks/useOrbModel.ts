@@ -10,7 +10,8 @@ import type { OrbSwarm } from "../types/orbModelTypes";
 import { BOOM_S, explosionState, portraitBoost, sstep, useOrbitCamera } from "./useOrbitCamera";
 
 const PIXEL = CELL_W / 2.5; // CSS px per rendered pixel
-const MAX_PIXELS = 180_000;
+// how many pixels the picture is rendered at, per quality level (0 = best); slow devices step down, see useAdaptiveQuality
+const PIXEL_BUDGET = [180_000, 110_000, 70_000] as const;
 const ORB_GAIN = 1.6; // brightness of the orbs on the site (the dot filter wants them brighter than in Blender)
 const GLOW_SCALE = 0.5; // soft glow under the disk, relative to the Blender setting
 // the far side of the disk is bent over the shadow by the lensing pass inside this screen radius (units; 1 unit = 5.2 M)
@@ -86,13 +87,15 @@ function createGl(canvas: HTMLCanvasElement, swarm: OrbSwarm): Gl | null {
  * its flat disk replaced by the orb model from Blender (public/models/black-hole-orbs.glb), cross-faded where they meet.
  * Same interface as useBlackHole, so either can feed the dot layer. `onFail` is called if the model cannot be loaded.
  */
-export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: boolean, onFail: () => void) {
+export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: boolean, onFail: () => void, quality = 0) {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const ctx = useRef<Gl | null>(null);
   const { rotate, setDragging, setHeld, update: updateCamera } = useOrbitCamera();
   const boomStart = useRef<number | null>(null);
   const startedAt = useRef(0);
   const lastFrame = useRef(0);
+  const qualityRef = useRef(quality);
+  const resizeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const el = container.current;
@@ -103,12 +106,13 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     const resize = () => {
       let w = Math.max(1, Math.round(el.clientWidth / PIXEL));
       let h = Math.max(1, Math.round(el.clientHeight / PIXEL));
-      const s = Math.min(1, Math.sqrt(MAX_PIXELS / (w * h)));
+      const s = Math.min(1, Math.sqrt(PIXEL_BUDGET[qualityRef.current] / (w * h)));
       w = Math.max(1, Math.round(w * s));
       h = Math.max(1, Math.round(h * s));
       c.width = w;
       c.height = h;
     };
+    resizeRef.current = resize;
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(el);
@@ -148,8 +152,15 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
       ctx.current?.gl.getExtension("WEBGL_lose_context")?.loseContext();
       canvas.current = null;
       ctx.current = null;
+      resizeRef.current = null;
     };
   }, [container, enabled, onFail]);
+
+  // a change of quality resizes the render target; the shader's lite level is read every frame
+  useEffect(() => {
+    qualityRef.current = quality;
+    resizeRef.current?.();
+  }, [quality]);
 
   const startBoom = useCallback(() => {
     boomStart.current ??= performance.now() / 1000;
@@ -202,6 +213,7 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     gl.uniform1f(g.lensing.u("uBase"), e.fall < 1 ? 1 : 0);
     gl.uniform1f(g.lensing.u("uBoom"), e.t >= 0 ? Math.min(e.t, 1) : -1);
     gl.uniform1f(g.lensing.u("uOrbDisk"), 1);
+    gl.uniform1f(g.lensing.u("uLite"), qualityRef.current);
     gl.uniform1f(g.lensing.u("uArchM"), ARCH_UNITS * 5.2);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
