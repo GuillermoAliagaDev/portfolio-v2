@@ -34,7 +34,7 @@ function createGl(canvas: HTMLCanvasElement): Gl | null {
   const pos = gl.getAttribLocation(program, "aPos");
   gl.enableVertexAttribArray(pos);
   gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
-  const names = ["uRes", "uElev", "uYaw", "uRoll", "uZoom", "uTime", "uDisk", "uGain", "uStars", "uRingW", "uBase", "uBoom"];
+  const names = ["uRes", "uElev", "uYaw", "uRoll", "uZoom", "uTime", "uDisk", "uGain", "uStars", "uRingW", "uBase", "uBoom", "uPinch", "uIris", "uWaveR", "uWaveAmp", "uCloud"];
   return { gl, uniforms: Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(program, n)])) };
 }
 
@@ -134,7 +134,12 @@ export function useBlackHole(container: RefObject<HTMLElement | null>, enabled: 
     g.uniform1f(u.uStars, e.stars);
     g.uniform1f(u.uRingW, e.ringW);
     g.uniform1f(u.uBase, e.fall < 1 ? 1 : 0);
-    g.uniform1f(u.uBoom, e.t < 0 ? -1 : Math.min(e.t, 1));
+    g.uniform1f(u.uBoom, e.caustic && e.t >= 0 ? Math.min(e.t, 1) : -1);
+    g.uniform1f(u.uPinch, e.pinch);
+    g.uniform1f(u.uIris, e.iris);
+    g.uniform1f(u.uCloud, e.cloud);
+    g.uniform1f(u.uWaveR, e.waveR);
+    g.uniform1f(u.uWaveAmp, e.waveAmp);
     g.drawArrays(g.TRIANGLES, 0, 3);
     return c;
   }, [updateCamera]);

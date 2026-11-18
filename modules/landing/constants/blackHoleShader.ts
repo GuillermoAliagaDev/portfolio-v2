@@ -29,6 +29,11 @@ uniform float uBase;      // 1 = draw the black hole, 0 = only the caustic
 uniform float uBoom;      // explosion progress 0..1, or -1 when idle
 uniform float uOrbDisk;   // 1 = the flat part of the disk is drawn by the orb model: keep only the far side bent over the shadow, cross-faded
 uniform float uLite;      // 0 = everything, 1 = no second plasma layer or faint stars, 2 = also no galaxy specks or arcs (slow devices)
+uniform float uPinch;     // explosion: how hard the sky is squeezed toward the centre (0 = not at all)
+uniform float uIris;      // explosion: radius of what is still lit, in screen heights (1 = all of it, 0 = black)
+uniform float uCloud;     // plasma cloud strength multiplier (1 = normal; lowered while the explosion shakes the sky)
+uniform float uWaveR;     // explosion shockwave: radius of the ring in reference pixels, or -1 when there is none
+uniform float uWaveAmp;   // its brightness
 uniform float uArchM;     // inside this screen radius (in M) the far side of the disk is bent over the shadow and is drawn here
 
 const float PI = 3.14159265;
@@ -287,8 +292,8 @@ void plasmaLayer(vec2 sky, float scale, vec2 seed, float strength, float hueLo, 
   addSky(strength * (NEBULA_BODY * body + 1.2 * veins), hue, W, Hs);
 }
 void colorNebula(vec2 sky, inout float W, inout float Hs) {
-  plasmaLayer(sky, 9.0, vec2(0.0), NEBULA_STRENGTH, 0.2, 0.34, W, Hs);                  // turquoise and green clouds
-  if (uLite < 0.5) plasmaLayer(sky, 6.5, vec2(31.7, -14.2), 0.85 * NEBULA_STRENGTH, 0.36, 0.5, W, Hs);   // a second layer in other places: blue-purple and purple
+  plasmaLayer(sky, 9.0, vec2(0.0), NEBULA_STRENGTH * uCloud, 0.2, 0.34, W, Hs);                  // turquoise and green clouds
+  if (uLite < 0.5) plasmaLayer(sky, 6.5, vec2(31.7, -14.2), 0.85 * NEBULA_STRENGTH * uCloud, 0.36, 0.5, W, Hs);   // a second layer in other places: blue-purple and purple
 }
 
 vec3 blackHole(vec2 q, float pixM) {
@@ -401,13 +406,45 @@ vec3 blackHole(vec2 q, float pixM) {
 void main() {
   vec2 q = (gl_FragCoord.xy - 0.5 * uRes) * (REF / (0.5 * min(uRes.x, uRes.y)));
   float pixM = (REF / (0.5 * min(uRes.x, uRes.y))) / uZoom;   // size of one canvas pixel in M
-  vec3 col = uBase > 0.5 ? blackHole(q, pixM) : vec3(0.0);
+  float rq = length(q);
+  float Rh = 5.2 * uZoom;   // radius of the photon ring on screen, in reference pixels
+  // the fall bends only the sky: the hole itself (shadow, ring, disk) is never warped
+  float away = ss(1.6 * Rh, 4.0 * Rh, rq);
+  vec2 qs = q;
+  if (uPinch > 0.0) {
+    // everything seen at a larger radius is drawn nearer the centre, and the whole sky winds around the hole as it is dragged in
+    float swirl = 0.04 * uPinch * 270.0 / (rq + 90.0) * away;
+    qs = rot2(q, swirl) * (1.0 + uPinch * dot(q, q) / (REF * REF) * away);
+  }
+  // the shockwave refracts the picture where the ring is: a slight bulge
+  if (uWaveR >= 0.0) qs *= 1.0 - 0.03 * uWaveAmp * exp(-pow((rq - (1.05 * Rh + uWaveR)) / 45.0, 2.0)) * away;
+  vec3 col = uBase > 0.5 ? blackHole(qs, pixM) : vec3(0.0);
   if (uBoom >= 0.0) {
     vec2 cl = caustic(q, uBoom);
     float cover = clamp(cl.y, 0.0, 1.0);
     col.r = col.r * (1.0 - cover) + cl.x;   // the caustic is part of the black hole channel
     col.g *= 1.0 - cover;
-    col *= 1.0 - ss(0.93, 1.0, uBoom);
+    col.rg *= 1.0 - ss(0.93, 1.0, uBoom);
+  }
+  if (uWaveR >= 0.0) {
+    // everything inside the ring has been blown away: black at the centre, and behind the ring a ragged, flickering trail
+    // where the dust breaks up into clumps and single dots before it goes out
+    float r = rq;
+    float R = (1.05 * Rh + uWaveR) * (1.0 + 0.02 * angNoise(atan(q.y, q.x) + 0.6 * uTime));   // the blast front is ragged and turns
+    float edge = r + R * (0.2 * (vnoise(q * 0.06 + 3.1) - 0.5) + 0.05 * (hash(floor(q / 2.0)) - 0.5));
+    float lit = ss(0.3 * R, 0.97 * R, edge);
+    col.r *= lit;
+    col.g *= lit * lit;   // the stars and the sky go out a little before the glow of the disk does
+    col.r += 1.5 * uWaveAmp * exp(-pow((r - R) / (6.0 + 0.022 * R), 2.0));        // the ring: white-hot in the black hole channel
+    col.r += 0.5 * uWaveAmp * exp(-pow((r - 0.86 * R) / (4.0 + 0.015 * R), 2.0));  // a fainter echo just behind it
+    col.r += 0.35 * uWaveAmp * exp(-pow((r - R) / (30.0 + 0.07 * R), 2.0));        // and a soft glow around it
+    float band = exp(-pow((r - 0.93 * R) / (8.0 + 0.05 * R), 2.0));
+    col.r += 0.9 * uWaveAmp * band * step(0.9, hash(floor(q / 3.0) + floor(uTime * 14.0)));   // embers flickering behind the ring
+  }
+  if (uIris < 1.0) {
+    // the picture closes toward the centre like an iris, leaving black
+    float rad = uIris * 2.4 * REF;
+    col.rg *= 1.0 - ss(0.72 * rad, rad + 1e-3, length(q));
   }
   // vignette: the corners fall into darkness, like a film frame
   vec2 vu = gl_FragCoord.xy / uRes - 0.5;

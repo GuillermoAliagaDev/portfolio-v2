@@ -7,7 +7,7 @@ import { mapOrbModel } from "../mappers/orbModelMapper";
 import { loadDiskTexture } from "../services/diskTextureService";
 import { fetchOrbModel } from "../services/orbModelService";
 import type { OrbSwarm } from "../types/orbModelTypes";
-import { BOOM_S, explosionState, portraitBoost, sstep, useOrbitCamera } from "./useOrbitCamera";
+import { BOOM_S, explosionState, portraitBoost, useOrbitCamera } from "./useOrbitCamera";
 
 const PIXEL = CELL_W / 2.5; // CSS px per rendered pixel
 // how many pixels the picture is rendered at, per quality level (0 = best); slow devices step down, see useAdaptiveQuality
@@ -185,6 +185,7 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     gl.disable(gl.BLEND);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    if (e.black) return c; // the end of the fall: the screen is black, so skip all the drawing
 
     const fullscreen = (p: Program) => {
       gl.useProgram(p.program);
@@ -211,7 +212,12 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     gl.uniform1f(g.lensing.u("uStars"), e.stars);
     gl.uniform1f(g.lensing.u("uRingW"), e.ringW);
     gl.uniform1f(g.lensing.u("uBase"), e.fall < 1 ? 1 : 0);
-    gl.uniform1f(g.lensing.u("uBoom"), e.t >= 0 ? Math.min(e.t, 1) : -1);
+    gl.uniform1f(g.lensing.u("uBoom"), e.caustic && e.t >= 0 ? Math.min(e.t, 1) : -1);
+    gl.uniform1f(g.lensing.u("uPinch"), e.pinch);
+    gl.uniform1f(g.lensing.u("uIris"), e.iris);
+    gl.uniform1f(g.lensing.u("uCloud"), e.cloud);
+    gl.uniform1f(g.lensing.u("uWaveR"), e.waveR);
+    gl.uniform1f(g.lensing.u("uWaveAmp"), e.waveAmp);
     gl.uniform1f(g.lensing.u("uOrbDisk"), 1);
     gl.uniform1f(g.lensing.u("uLite"), qualityRef.current);
     gl.uniform1f(g.lensing.u("uArchM"), ARCH_UNITS * 5.2);
@@ -220,7 +226,7 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     // everything after this is composited over it: premultiplied colour + coverage
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    const orbFade = 1 - sstep(0.3, 0.75, e.fall);
+    const orbFade = e.orbs;
     if (orbFade > 0) {
       // 2. the soft glow under the disk, outside the part the lensing pass draws
       fullscreen(g.glow);
