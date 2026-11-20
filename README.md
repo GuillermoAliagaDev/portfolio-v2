@@ -21,7 +21,7 @@ Needs Node 20.9 or newer.
 2. In Vercel choose **Add New → Project**, import the repository and keep the defaults (Framework: Next.js, build command `next build`).
 3. Deploy. There are no environment variables to set.
 
-The fonts (LINE Seed JP, Bitcount Grid Double, Geist Mono) are fetched from Google Fonts at build time and served from your own domain.
+The fonts (LINE Seed JP, JetBrains Mono, Geist Mono) are fetched from Google Fonts at build time and served from your own domain.
 
 ## Where things are
 

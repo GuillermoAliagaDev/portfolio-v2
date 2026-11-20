@@ -31,12 +31,38 @@ body {
 .hl-in { transform: translateY(115%); animation: hl-in 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) forwards; }
 .hl-out { animation: hl-out 0.5s cubic-bezier(0.55, 0, 0.85, 0.3) var(--d, 0ms) forwards; }
 
+/* the changing word, simple version: the whole word slides up out of its line and the next one slides in from below */
+@keyframes wd-in {
+  from { transform: translateY(105%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes wd-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(-105%); opacity: 0; }
+}
+.wd-in { transform: translateY(105%); opacity: 0; animation: wd-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) forwards; }
+.wd-out { animation: wd-out 0.42s cubic-bezier(0.55, 0, 0.9, 0.4) forwards; }
+@media (prefers-reduced-motion: reduce) { .wd-in, .wd-out { animation: none; transform: none; opacity: 1; } }
+
+/* the changing word, blur version: every letter fades in out of a blur, one after another; the old word blurs out together */
+@keyframes bl-in {
+  from { opacity: 0; filter: blur(14px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@keyframes bl-out {
+  from { opacity: 1; filter: blur(0); }
+  to { opacity: 0; filter: blur(14px); }
+}
+.bl-in { opacity: 0; animation: bl-in 0.7s cubic-bezier(0.25, 0.8, 0.25, 1) var(--d, 0ms) forwards; }
+.bl-out { animation: bl-out 0.38s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) { .bl-in, .bl-out { animation: none; opacity: 1; filter: none; } }
+
 /* word scramble: loose letters are dim green; a letter flashes and glows for a moment as it settles */
-:root { --word-color: #2ceaa3; }
+:root { --word-color: #ff4800; }
 .sc-flicker { color: var(--word-color); opacity: 0.5; }
 @keyframes sc-land {
-  0% { color: #cffff0; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(44, 234, 163, 0.9); }
-  100% { color: var(--word-color); opacity: 1; transform: none; text-shadow: 0 0 0 rgba(44, 234, 163, 0); }
+  0% { color: #ffd0b8; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(255, 72, 0, 0.9); }
+  100% { color: var(--word-color); opacity: 1; transform: none; text-shadow: 0 0 0 rgba(255, 72, 0, 0); }
 }
 .sc-set { animation: sc-land 0.45s ease-out; }
 @media (prefers-reduced-motion: reduce) { .sc-flicker, .sc-set { color: var(--word-color); opacity: 1; animation: none; } }

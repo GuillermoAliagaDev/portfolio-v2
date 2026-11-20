@@ -2,23 +2,26 @@
 import { CSSProperties, ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { ScrambleCell, scrambleDuration, useScrambleText } from "../../hooks/useScrambleText";
-import { HEADLINE_LINES, HEADLINE_WORDS, LETTER_STAGGER_MS, SIGNATURE_LINES, WORD_ANIMATION, WORD_HOLD_MS } from "../../constants/headlineWords";
+import { HEADLINE_LINES, HEADLINE_WORDS, LETTER_STAGGER_MS, SIGNATURE_LINES, WORD_ANIMATION, WORD_HOLD_MS, WordAnimation } from "../../constants/headlineWords";
 
-// ?word=roll or ?word=scramble in the address overrides the default, to compare the two animations
+// ?word=blur, slide, scramble or roll in the address overrides the default, to compare the animations
 const noSubscribe = () => () => {};
-const wordAnimation = () => {
+const wordAnimation = (): WordAnimation => {
   const q = new URLSearchParams(window.location.search).get("word");
-  return q === "roll" || q === "scramble" ? q : WORD_ANIMATION;
+  return q === "blur" || q === "slide" || q === "roll" || q === "scramble" ? q : WORD_ANIMATION;
 };
+const BLUR_STEP_MS = 55; // gap between one letter blurring in and the next
+const BLUR_OUT_MS = 380; // how long the old word takes to blur away
+const SLIDE_OUT_MS = 420; // how long the word takes to slide away
 
 const FIRST_LETTER_MS = 250; // the first letter waits for the page to settle
 const LINE_STEP = LETTER_STAGGER_MS * 0.8;
 const WORD_START_MS = FIRST_LETTER_MS + HEADLINE_LINES.reduce((sum, line) => sum + line.length * LINE_STEP, 0) + 80;
 
-type LettersProps = { text: string; className: string; start?: number };
+type LettersProps = { text: string; className: string; start?: number; step?: number };
 
 // one span per letter so each can move on its own, a little later than the one before it
-function Letters({ text, className, start = 0 }: LettersProps) {
+function Letters({ text, className, start = 0, step = LETTER_STAGGER_MS }: LettersProps) {
   return (
     <>
       {[...text].map((ch, i) => (
@@ -26,7 +29,7 @@ function Letters({ text, className, start = 0 }: LettersProps) {
           key={i}
           aria-hidden
           className={`${className} inline-block whitespace-pre`}
-          style={{ "--d": `${start + i * LETTER_STAGGER_MS}ms` } as CSSProperties}
+          style={{ "--d": `${start + i * step}ms` } as CSSProperties}
         >
           {ch}
         </span>
@@ -51,7 +54,7 @@ function ScrambleRows({ cells }: { cells: ScrambleCell[] }) {
   return (
     <>
       {rows.map((row, r) => (
-        <Line key={r} className="min-h-[1.05em] whitespace-pre font-[family-name:var(--font-bitcount)] font-medium text-[var(--word-color)]">
+        <Line key={r} className="min-h-[1.05em] whitespace-pre font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
           {row.length === 0 && "\u00a0"}
           {row.map((c, i) => (
             <span key={i} aria-hidden className={`inline-block ${c.settled ? "sc-set" : "sc-flicker"}`}>
@@ -84,7 +87,7 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
 
   useEffect(() => {
     if (scramble || reduced || !visible) return;
-    const exitMs = word.length * LETTER_STAGGER_MS + 520;
+    const exitMs = mode === "slide" ? SLIDE_OUT_MS : mode === "blur" ? BLUR_OUT_MS : word.length * LETTER_STAGGER_MS + 520;
     const wait = setTimeout(() => setLeaving(true), WORD_HOLD_MS);
     const swap = setTimeout(() => {
       setIndex((i) => (i + 1) % HEADLINE_WORDS.length);
@@ -95,10 +98,10 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
       clearTimeout(wait);
       clearTimeout(swap);
     };
-  }, [index, scramble, reduced, visible, word.length]);
+  }, [index, scramble, reduced, visible, word.length, mode]);
 
   const enter = reduced ? "" : "hl-in";
-  const size = "text-[clamp(2.5rem,9.5vw,5.625rem)] leading-[1.05] font-[family-name:var(--font-line-seed)] font-bold text-white";
+  const size = "text-[clamp(2.5rem,9.5vw,4.375rem)] leading-[1.05] font-[family-name:var(--font-line-seed)] font-bold text-white";
   const fade = `transition-[opacity,filter,transform] duration-700 ease-out ${visible ? "opacity-100" : "opacity-0 blur-md"}`;
 
   const leadLines = HEADLINE_LINES.map((line, i) => ({
@@ -120,17 +123,29 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
           </Line>
         ))}
         {scramble && <ScrambleRows cells={scrambled} />}
-        {!scramble && word.split("\n").map((row, r, rows) => {
+        {mode === "slide" && !scramble && word.split("\n").map((row, r) => (
+          // the whole row slides as one piece: up and out, then the next word slides in from below
+          <Line key={`${word}-${r}`} className="font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
+            <span
+              className={`block whitespace-pre-wrap ${reduced ? "" : leaving ? "wd-out" : "wd-in"}`}
+              style={{ "--d": `${(cycled ? 0 : wordStart) + r * 70}ms` } as CSSProperties}
+            >
+              {row}
+            </span>
+          </Line>
+        ))}
+        {mode !== "slide" && !scramble && word.split("\n").map((row, r, rows) => {
           const before = rows.slice(0, r).join("").length; // letters on the rows above, so the stagger carries on down
           return (
-            <Line key={`${word}-${r}`} className="font-[family-name:var(--font-bitcount)] font-medium text-[var(--word-color)]">
+            <Line key={`${word}-${r}`} className="font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
               {row.split(" ").map((part, i, parts) => (
                 // each word stays whole when a line wraps
                 <span key={i} className={`inline-block whitespace-nowrap ${i < parts.length - 1 ? "mr-[0.25em]" : ""}`}>
                   <Letters
                     text={part}
-                    start={(cycled ? 0 : wordStart) + (before + parts.slice(0, i).join(" ").length) * LETTER_STAGGER_MS}
-                    className={reduced ? "" : leaving ? "hl-out" : "hl-in"}
+                    step={mode === "blur" ? BLUR_STEP_MS : LETTER_STAGGER_MS}
+                    start={(cycled ? 0 : wordStart) + (before + parts.slice(0, i).join(" ").length) * (mode === "blur" ? BLUR_STEP_MS : LETTER_STAGGER_MS)}
+                    className={reduced ? "" : mode === "blur" ? (leaving ? "bl-out" : "bl-in") : leaving ? "hl-out" : "hl-in"}
                   />
                 </span>
               ))}

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#%&*+<>/";
+const GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789#%&*+<>/"; // lowercase, like the words
 const FLICKER_MS = 45; // how often a not-yet-settled letter changes
 const LEAD_MS = 350; // everything scrambles for this long before the first letter settles
 export const SCRAMBLE_STEP_MS = 45; // delay between one letter settling and the next
