@@ -1,6 +1,5 @@
 "use client";
 import { RefObject, useCallback, useEffect, useRef } from "react";
-import { CELL_W } from "../constants/asciiCell";
 import { BLACK_HOLE_FRAGMENT, BLACK_HOLE_VERTEX } from "../constants/blackHoleShader";
 import { ORB_FRAGMENT, ORB_GLOW_FRAGMENT, ORB_VERTEX } from "../constants/orbModelShaders";
 import { mapOrbModel } from "../mappers/orbModelMapper";
@@ -9,7 +8,7 @@ import { fetchOrbModel } from "../services/orbModelService";
 import type { OrbSwarm } from "../types/orbModelTypes";
 import { BOOM_S, explosionState, portraitBoost, useOrbitCamera } from "./useOrbitCamera";
 
-const PIXEL = CELL_W / 2.5; // CSS px per rendered pixel
+const PIXEL = 2.4; // CSS px per rendered pixel
 // how many pixels the picture is rendered at, per quality level (0 = best); slow devices step down, see useAdaptiveQuality
 const PIXEL_BUDGET = [180_000, 110_000, 70_000] as const;
 const ORB_GAIN = 1.6; // brightness of the orbs on the site (the dot filter wants them brighter than in Blender)
@@ -211,10 +210,7 @@ export function useOrbModel(container: RefObject<HTMLElement | null>, enabled: b
     gl.uniform1f(g.lensing.u("uGain"), e.gain);
     gl.uniform1f(g.lensing.u("uStars"), e.stars);
     gl.uniform1f(g.lensing.u("uRingW"), e.ringW);
-    gl.uniform1f(g.lensing.u("uBase"), e.fall < 1 ? 1 : 0);
-    gl.uniform1f(g.lensing.u("uBoom"), e.caustic && e.t >= 0 ? Math.min(e.t, 1) : -1);
     gl.uniform1f(g.lensing.u("uPinch"), e.pinch);
-    gl.uniform1f(g.lensing.u("uIris"), e.iris);
     gl.uniform1f(g.lensing.u("uCloud"), e.cloud);
     gl.uniform1f(g.lensing.u("uWaveR"), e.waveR);
     gl.uniform1f(g.lensing.u("uWaveAmp"), e.waveAmp);

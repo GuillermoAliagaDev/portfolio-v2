@@ -28,5 +28,5 @@ The fonts (LINE Seed JP, JetBrains Mono, Geist Mono) are fetched from Google Fon
 - `app/` routing only; `modules/landing/` is the landing feature (components, hooks, constants, services, mappers, types).
 - `modules/landing/constants/headlineWords.ts` the words that cycle in the headline.
 - `modules/landing/constants/blackHoleShader.ts` the lensing shader and the sky.
-- `components/ascii/` the dot and text renderers; `hooks/` and `lib/` are shared helpers.
+- `components/ascii/` the dot renderers; `hooks/` and `lib/` are shared helpers.
 - `public/models/black-hole-orbs.glb` and `public/textures/bh-particles.png` are generated from `design/` (Blender scripts and the `.blend` source).

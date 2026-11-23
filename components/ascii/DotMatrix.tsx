@@ -15,7 +15,7 @@ const hashDot = (x: number, y: number, t: number) => {
 };
 
 type Props = {
-  /** same source the ASCII grid reads: R = foreground, G = backdrop (or plain video/canvas) */
+  /** one source for both dot layers: R = foreground, G = backdrop (or plain video/canvas) */
   getSource: () => AsciiSource | null;
   running: boolean;
   /** CSS px per dot */

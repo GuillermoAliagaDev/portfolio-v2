@@ -18,31 +18,13 @@ body {
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
 }
 
-/* headline letters: they rise out of their line with a small tilt and a soft landing, and lift away when the word changes */
+/* headline letters: they rise out of their line with a small tilt and a soft landing */
 @keyframes hl-in {
   from { transform: translateY(115%) rotate(7deg); filter: blur(6px); }
   60% { filter: blur(0); }
   to { transform: none; filter: blur(0); }
 }
-@keyframes hl-out {
-  from { transform: none; filter: blur(0); }
-  to { transform: translateY(-115%) rotate(-7deg); filter: blur(6px); }
-}
 .hl-in { transform: translateY(115%); animation: hl-in 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) forwards; }
-.hl-out { animation: hl-out 0.5s cubic-bezier(0.55, 0, 0.85, 0.3) var(--d, 0ms) forwards; }
-
-/* the changing word, simple version: the whole word slides up out of its line and the next one slides in from below */
-@keyframes wd-in {
-  from { transform: translateY(105%); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
-@keyframes wd-out {
-  from { transform: none; opacity: 1; }
-  to { transform: translateY(-105%); opacity: 0; }
-}
-.wd-in { transform: translateY(105%); opacity: 0; animation: wd-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) forwards; }
-.wd-out { animation: wd-out 0.42s cubic-bezier(0.55, 0, 0.9, 0.4) forwards; }
-@media (prefers-reduced-motion: reduce) { .wd-in, .wd-out { animation: none; transform: none; opacity: 1; } }
 
 /* the changing word, blur version: every letter fades in out of a blur, one after another; the old word blurs out together */
 @keyframes bl-in {
@@ -57,20 +39,12 @@ body {
 .bl-out { animation: bl-out 0.38s ease-in forwards; }
 @media (prefers-reduced-motion: reduce) { .bl-in, .bl-out { animation: none; opacity: 1; filter: none; } }
 
-/* word scramble: loose letters are dim green; a letter flashes and glows for a moment as it settles */
 :root { --word-color: #ff4800; }
-.sc-flicker { color: var(--word-color); opacity: 0.5; }
-@keyframes sc-land {
-  0% { color: #ffd0b8; opacity: 1; transform: scale(1.12); text-shadow: 0 0 18px rgba(255, 72, 0, 0.9); }
-  100% { color: var(--word-color); opacity: 1; transform: none; text-shadow: 0 0 0 rgba(255, 72, 0, 0); }
-}
-.sc-set { animation: sc-land 0.45s ease-out; }
-@media (prefers-reduced-motion: reduce) { .sc-flicker, .sc-set { color: var(--word-color); opacity: 1; animation: none; } }
 
 html, body { overscroll-behavior: none; }
 body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .hl-in, .hl-out { animation: none; transform: none; }
+  .hl-in { animation: none; transform: none; }
 }
 
 /* the screen after the explosion: everything keeps moving */
@@ -78,8 +52,6 @@ body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
 .sh-fade { animation: sh-fade 0.8s ease-out both; }
 @keyframes sh-pop { from { opacity: 0; transform: scale(0.4); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
 .sh-pop { opacity: 0; animation: sh-pop 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.15) var(--d, 0ms) forwards; }
-@keyframes sh-rise { from { opacity: 0; transform: translateY(8svh); filter: blur(16px); } to { opacity: 1; transform: none; filter: blur(0); } }
-.sh-rise { animation: sh-rise 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both; }
 /* the sculpture materialises: a bright, blurred, slightly enlarged print that settles, revealed from the bottom up with a soft edge */
 @keyframes sh-head {
   0% { -webkit-mask-position: 0 0; mask-position: 0 0; opacity: 0.6; filter: brightness(2.4) blur(10px); transform: translateY(5svh) scale(1.06); }
@@ -100,14 +72,13 @@ body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
 @keyframes sh-hint { 0%, 100% { opacity: 0; } 20%, 75% { opacity: 1; } }
 .sh-hint { opacity: 0; animation: sh-hint 6s ease-in-out 2.8s both; }
 @keyframes sh-float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1.2svh) scale(1.015); } }
-.sh-float { animation: sh-float 9s ease-in-out infinite; }
 .sh-lean { transform: translate3d(calc(-50% + var(--px, 0) * -18px), calc(var(--py, 0) * -10px), 0); transition: transform 0.6s ease-out; }
 @keyframes sh-bob { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(5px, -7px); } 50% { transform: translate(-3px, 4px); } 75% { transform: translate(-6px, -3px); } }
 .sh-bob { animation: sh-bob var(--bob, 7s) ease-in-out var(--bob-delay, 0s) infinite; }
 @keyframes sh-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .sh-marquee { animation: sh-marquee 26s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .sh-fade, .sh-pop, .sh-rise, .sh-float, .sh-bob, .sh-marquee { animation: none; opacity: 1; transform: none; filter: none; }
+  .sh-fade, .sh-pop, .sh-bob, .sh-marquee { animation: none; opacity: 1; transform: none; filter: none; }
   .sh-hint { animation: none; opacity: 0.7; }
   .sh-head { animation: none; -webkit-mask-image: none; mask-image: none; }
 }

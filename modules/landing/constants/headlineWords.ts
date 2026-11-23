@@ -18,9 +18,3 @@ export const HEADLINE_WORDS = [
 
 export const WORD_HOLD_MS = 2600; // how long a word stays
 export const LETTER_STAGGER_MS = 38; // delay between letters
-
-/** How the word changes: "blur" = every letter blurs in one after another (and blurs out again), "slide" = the whole word slides up out of its line and the next one slides in from below,
- *  "scramble" = letters flicker through random glyphs and settle one by one,
- *  "roll" = the letters lift out one by one and the next word rises in. ?word=slide|scramble|roll in the address overrides it. */
-export type WordAnimation = "blur" | "slide" | "scramble" | "roll";
-export const WORD_ANIMATION: WordAnimation = "blur";

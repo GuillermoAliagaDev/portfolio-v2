@@ -1,18 +1,10 @@
 "use client";
-import { CSSProperties, ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { CSSProperties, ReactNode, useEffect, useState } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { ScrambleCell, scrambleDuration, useScrambleText } from "../../hooks/useScrambleText";
-import { HEADLINE_LINES, HEADLINE_WORDS, LETTER_STAGGER_MS, SIGNATURE_LINES, WORD_ANIMATION, WORD_HOLD_MS, WordAnimation } from "../../constants/headlineWords";
+import { HEADLINE_LINES, HEADLINE_WORDS, LETTER_STAGGER_MS, SIGNATURE_LINES, WORD_HOLD_MS } from "../../constants/headlineWords";
 
-// ?word=blur, slide, scramble or roll in the address overrides the default, to compare the animations
-const noSubscribe = () => () => {};
-const wordAnimation = (): WordAnimation => {
-  const q = new URLSearchParams(window.location.search).get("word");
-  return q === "blur" || q === "slide" || q === "roll" || q === "scramble" ? q : WORD_ANIMATION;
-};
 const BLUR_STEP_MS = 55; // gap between one letter blurring in and the next
 const BLUR_OUT_MS = 380; // how long the old word takes to blur away
-const SLIDE_OUT_MS = 420; // how long the word takes to slide away
 
 const FIRST_LETTER_MS = 250; // the first letter waits for the page to settle
 const LINE_STEP = LETTER_STAGGER_MS * 0.8;
@@ -38,33 +30,10 @@ export function Letters({ text, className, start = 0, step = LETTER_STAGGER_MS }
   );
 }
 
-// a line that hides whatever is below or above it, so letters seem to rise out of (and sink into) the line itself.
+// a line that hides whatever is below or above it, so letters seem to rise out of the line itself.
 // The padding keeps descenders (g, p) from being cut; the negative margin gives the space back.
 function Line({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <span className={`block overflow-hidden pb-[0.18em] -mb-[0.18em] pt-[0.05em] -mt-[0.05em] ${className}`}>{children}</span>;
-}
-
-// the word while it decodes: letters that have not settled yet are dim turquoise, and each one flashes as it lands
-function ScrambleRows({ cells }: { cells: ScrambleCell[] }) {
-  const rows: ScrambleCell[][] = [[]];
-  for (const c of cells) {
-    if (c.ch === "\n") rows.push([]);
-    else rows[rows.length - 1].push(c);
-  }
-  return (
-    <>
-      {rows.map((row, r) => (
-        <Line key={r} className="min-h-[1.05em] whitespace-pre font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
-          {row.length === 0 && "\u00a0"}
-          {row.map((c, i) => (
-            <span key={i} aria-hidden className={`inline-block ${c.settled ? "sc-set" : "sc-flicker"}`}>
-              {c.ch}
-            </span>
-          ))}
-        </Line>
-      ))}
-    </>
-  );
 }
 
 /** Top left: "exceeding the limits of" and, below it, a word that keeps changing. Bottom right: the signature. */
@@ -74,31 +43,21 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
   const [leaving, setLeaving] = useState(false);
   const [cycled, setCycled] = useState(false); // false until the first word has been replaced
   const word = HEADLINE_WORDS[index];
-  const mode = useSyncExternalStore(noSubscribe, wordAnimation, () => WORD_ANIMATION);
-  const scramble = mode === "scramble" && !reduced;
-  const scrambled = useScrambleText(word, scramble, WORD_START_MS);
 
   useEffect(() => {
-    if (!scramble || !visible) return;
-    // the word stays for WORD_HOLD_MS once it has settled, then the next one decodes over it
-    const id = setTimeout(() => setIndex((i) => (i + 1) % HEADLINE_WORDS.length), scrambleDuration("", word) + WORD_HOLD_MS);
-    return () => clearTimeout(id);
-  }, [index, scramble, visible, word]);
-
-  useEffect(() => {
-    if (scramble || reduced || !visible) return;
-    const exitMs = mode === "slide" ? SLIDE_OUT_MS : mode === "blur" ? BLUR_OUT_MS : word.length * LETTER_STAGGER_MS + 520;
+    if (reduced || !visible) return;
+    // the word stays for WORD_HOLD_MS, blurs out, and the next one blurs in letter by letter
     const wait = setTimeout(() => setLeaving(true), WORD_HOLD_MS);
     const swap = setTimeout(() => {
       setIndex((i) => (i + 1) % HEADLINE_WORDS.length);
       setLeaving(false);
       setCycled(true);
-    }, WORD_HOLD_MS + exitMs);
+    }, WORD_HOLD_MS + BLUR_OUT_MS);
     return () => {
       clearTimeout(wait);
       clearTimeout(swap);
     };
-  }, [index, scramble, reduced, visible, word.length, mode]);
+  }, [index, reduced, visible]);
 
   const enter = reduced ? "" : "hl-in";
   const size = "text-[clamp(2.5rem,9.5vw,4.375rem)] leading-[1.05] font-[family-name:var(--font-line-seed)] font-bold text-white";
@@ -108,8 +67,7 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
     line,
     start: FIRST_LETTER_MS + HEADLINE_LINES.slice(0, i).reduce((sum, l) => sum + l.length * LINE_STEP, 0),
   }));
-  const wordStart = WORD_START_MS;
-  const sigStart = wordStart + 500;
+  const sigStart = WORD_START_MS + 500;
 
   return (
     <>
@@ -122,19 +80,7 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
             <Letters text={line} start={start} className={enter} />
           </Line>
         ))}
-        {scramble && <ScrambleRows cells={scrambled} />}
-        {mode === "slide" && !scramble && word.split("\n").map((row, r) => (
-          // the whole row slides as one piece: up and out, then the next word slides in from below
-          <Line key={`${word}-${r}`} className="font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
-            <span
-              className={`block whitespace-pre-wrap ${reduced ? "" : leaving ? "wd-out" : "wd-in"}`}
-              style={{ "--d": `${(cycled ? 0 : wordStart) + r * 70}ms` } as CSSProperties}
-            >
-              {row}
-            </span>
-          </Line>
-        ))}
-        {mode !== "slide" && !scramble && word.split("\n").map((row, r, rows) => {
+        {word.split("\n").map((row, r, rows) => {
           const before = rows.slice(0, r).join("").length; // letters on the rows above, so the stagger carries on down
           return (
             <Line key={`${word}-${r}`} className="font-[family-name:var(--font-jetbrains)] font-bold text-[var(--word-color)]">
@@ -143,9 +89,9 @@ export function IntroHeadline({ visible }: { visible: boolean }) {
                 <span key={i} className={`inline-block whitespace-nowrap ${i < parts.length - 1 ? "mr-[0.25em]" : ""}`}>
                   <Letters
                     text={part}
-                    step={mode === "blur" ? BLUR_STEP_MS : LETTER_STAGGER_MS}
-                    start={(cycled ? 0 : wordStart) + (before + parts.slice(0, i).join(" ").length) * (mode === "blur" ? BLUR_STEP_MS : LETTER_STAGGER_MS)}
-                    className={reduced ? "" : mode === "blur" ? (leaving ? "bl-out" : "bl-in") : leaving ? "hl-out" : "hl-in"}
+                    step={BLUR_STEP_MS}
+                    start={(cycled ? 0 : WORD_START_MS) + (before + parts.slice(0, i).join(" ").length) * BLUR_STEP_MS}
+                    className={reduced ? "" : leaving ? "bl-out" : "bl-in"}
                   />
                 </span>
               ))}

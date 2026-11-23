@@ -1,7 +1,7 @@
-// Real-time Schwarzschild black hole (G = c = M = 1), rendered at ASCII-grid resolution.
+// Real-time Schwarzschild black hole (G = c = M = 1), rendered at the resolution of the halftone dot grid.
 // Each pixel integrates a null geodesic u(phi) = 1/r in its orbital plane (u'' = -u + 3u^2), shades the
 // thin accretion disk wherever the ray crosses the equatorial plane, and samples a procedural starfield
-// from the escape direction. The explosion ("plunge") is the same scene zoomed in, plus an astroid caustic.
+// from the escape direction. The explosion ("plunge") is the same scene zoomed in, plus a shockwave ring.
 
 export const BLACK_HOLE_VERTEX = `
 attribute vec2 aPos;
@@ -25,12 +25,9 @@ uniform sampler2D uDisk;  // baked particle cells (see diskEmission)
 uniform float uGain;      // disk brightness multiplier (flares during the plunge)
 uniform float uStars;     // starfield visibility
 uniform float uRingW;     // photon ring width multiplier
-uniform float uBase;      // 1 = draw the black hole, 0 = only the caustic
-uniform float uBoom;      // explosion progress 0..1, or -1 when idle
 uniform float uOrbDisk;   // 1 = the flat part of the disk is drawn by the orb model: keep only the far side bent over the shadow, cross-faded
 uniform float uLite;      // 0 = everything, 1 = no second plasma layer or faint stars, 2 = also no galaxy specks or arcs (slow devices)
 uniform float uPinch;     // explosion: how hard the sky is squeezed toward the centre (0 = not at all)
-uniform float uIris;      // explosion: radius of what is still lit, in screen heights (1 = all of it, 0 = black)
 uniform float uCloud;     // plasma cloud strength multiplier (1 = normal; lowered while the explosion shakes the sky)
 uniform float uWaveR;     // explosion shockwave: radius of the ring in reference pixels, or -1 when there is none
 uniform float uWaveAmp;   // its brightness
@@ -123,29 +120,6 @@ float angNoise(float th) {
   return 0.55 * sin(9.0 * th + 1.3) + 0.42 * sin(14.0 * th + 4.1) + 0.36 * sin(21.0 * th + 2.2)
        + 0.3 * sin(29.0 * th + 5.7) + 0.26 * sin(38.0 * th + 0.4) + 0.22 * sin(51.0 * th + 3.3)
        + 0.18 * sin(67.0 * th + 1.9) + 0.15 * sin(83.0 * th + 4.8);
-}
-
-// white astroid caustic with rippled dark lobes; returns (luminance, coverage)
-vec2 caustic(vec2 q, float t) {
-  float a = 470.0 * pow(ss(0.38, 0.62, t), 1.2) * (1.0 + 0.06 * sin(6.0 * PI * t)) * pow(1.0 - ss(0.80, 0.96, t), 1.6) + 1e-3;
-  float rot = radians(45.0 + 28.0 * t);
-  float c = cos(rot), s = sin(rot);
-  float x = (c * q.x + s * q.y) / a, y = (-s * q.x + c * q.y) / a;
-  float th = atan(q.y, q.x);
-  float n = angNoise(th) * 0.9;
-  float F = pow(pow(abs(x) + 1e-6, 2.0 / 3.0) + pow(abs(y) + 1e-6, 2.0 / 3.0), 1.5) * (1.0 + 0.07 * n);
-  float core = 1.0 - ss(0.80, 1.05, F);
-  float glow = exp(-max(F - 0.9, 0.0) * 3.6) * 0.55;
-  vec2 xy = vec2(x, y);
-  float d = min(min(length(xy - vec2(0.75, 0.75)), length(xy - vec2(0.75, -0.75))),
-                min(length(xy - vec2(-0.75, 0.75)), length(xy - vec2(-0.75, -0.75))));
-  float rip = 0.5 + 0.5 * sin(2.0 * PI * (d * a / 34.0 - 5.0 * t) + 0.6 * n);
-  float lobe = (0.03 + 0.26 * rip * ss(0.25, 0.85, 1.0 - d)) * ss(0.45, 0.6, t);
-  float rk = length(q) / (0.05 * a + 1e-3);
-  float knot = ss(0.6, 1.0, rk * (1.0 + 0.3 * sin(4.0 * th + 0.8 + 6.0 * t) + 0.06 * n));
-  float lum = (max(core, glow) + lobe * (1.0 - core)) * (0.35 + 0.65 * knot);
-  float amp = ss(0.38, 0.46, t) * (1.0 - ss(0.86, 0.97, t));
-  return vec2(clamp(lum, 0.0, 1.4) * amp, core * amp);
 }
 
 float vnoise(vec2 p) {
@@ -418,14 +392,7 @@ void main() {
   }
   // the shockwave refracts the picture where the ring is: a slight bulge
   if (uWaveR >= 0.0) qs *= 1.0 - 0.03 * uWaveAmp * exp(-pow((rq - (1.05 * Rh + uWaveR)) / 45.0, 2.0)) * away;
-  vec3 col = uBase > 0.5 ? blackHole(qs, pixM) : vec3(0.0);
-  if (uBoom >= 0.0) {
-    vec2 cl = caustic(q, uBoom);
-    float cover = clamp(cl.y, 0.0, 1.0);
-    col.r = col.r * (1.0 - cover) + cl.x;   // the caustic is part of the black hole channel
-    col.g *= 1.0 - cover;
-    col.rg *= 1.0 - ss(0.93, 1.0, uBoom);
-  }
+  vec3 col = blackHole(qs, pixM);
   if (uWaveR >= 0.0) {
     // everything inside the ring has been blown away: black at the centre, and behind the ring a ragged, flickering trail
     // where the dust breaks up into clumps and single dots before it goes out
@@ -440,11 +407,6 @@ void main() {
     col.r += 0.35 * uWaveAmp * exp(-pow((r - R) / (30.0 + 0.07 * R), 2.0));        // and a soft glow around it
     float band = exp(-pow((r - 0.93 * R) / (8.0 + 0.05 * R), 2.0));
     col.r += 0.9 * uWaveAmp * band * step(0.9, hash(floor(q / 3.0) + floor(uTime * 14.0)));   // embers flickering behind the ring
-  }
-  if (uIris < 1.0) {
-    // the picture closes toward the centre like an iris, leaving black
-    float rad = uIris * 2.4 * REF;
-    col.rg *= 1.0 - ss(0.72 * rad, rad + 1e-3, length(q));
   }
   // vignette: the corners fall into darkness, like a film frame
   vec2 vu = gl_FragCoord.xy / uRes - 0.5;

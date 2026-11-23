@@ -7,18 +7,7 @@ export const portraitBoost = (width: number, height: number) => (height > width 
 export const REST_ZOOM = 10; // resting view (was 13: the black hole is about a quarter smaller)
 export const PLUNGE_ZOOM = 160; // end of the fall-in: the shadow fills the screen (keep above ~110)
 export const REST_ELEV = 9; // resting camera elevation above the disk plane, degrees
-// Which explosion plays when the black hole is clicked:
-//   "fall"    = the camera plunges into the shadow, the sky is pulled in toward the centre and the picture closes like an iris
-//               until the screen is pure black (the next screen can then show)
-//   "shockwave" = a bright ring bursts out from the black hole and sweeps over the screen; everything it passes dissolves, and
-//               the screen is black behind it
-//   "collapse" = both: the plunge, and half way down the shockwave tears out of the shadow across the swirling sky and
-//               blows everything away, leaving black
-//   "caustic" = the plunge followed by a white astroid caustic flash that fades to black
-export type ExplosionStyle = "fall" | "shockwave" | "collapse" | "caustic";
-export const EXPLOSION_STYLE: ExplosionStyle = "collapse";
-const BOOM_LENGTH: Record<ExplosionStyle, number> = { fall: 2.4, shockwave: 1.9, collapse: 2.7, caustic: 2.5 };
-export const BOOM_S = BOOM_LENGTH[EXPLOSION_STYLE]; // length of the explosion in seconds
+export const BOOM_S = 2.7; // length of the explosion in seconds
 const WAVE_REACH = 2.9 * 270; // radius of the shockwave when it is done, in reference pixels (270 = half the screen height); past every corner
 export const DEG = Math.PI / 180;
 const ELEV_LIMIT = 70;
@@ -35,108 +24,31 @@ export const sstep = (a: number, b: number, x: number) => {
 /** Everything that changes during the explosion, from t = seconds since the click / BOOM_S (or -1 when idle). */
 export function explosionState(t: number) {
   const tb = Math.max(t, 0);
-  if (EXPLOSION_STYLE === "collapse") {
-    // 0 - 0.1 the view pulls back; 0.1 - 0.5 it plunges toward the shadow while the sky is dragged in and spun;
-    // 0.5 the blast: a ring tears out of the shadow and sweeps the screen clear; 0.93 black
-    const burst = 0.5;
-    const fall = Math.min(tb / 0.95, 1) ** 2;
-    const w = Math.min(Math.max((tb - burst) / 0.46, 0), 1);
-    const reach = 1 - (1 - w) ** 1.7;
-    const hit = sstep(burst - 0.02, burst + 0.01, tb) * Math.exp(-Math.max(tb - burst, 0) * 7);
-    return {
-      t,
-      tb,
-      fall,
-      pull: 0.07 * Math.sin(Math.PI * Math.min(tb / 0.1, 1)) * (tb < 0.1 ? 1 : 0),
-      // a tremor that grows during the plunge, then the jolt of the blast
-      shake: 0.008 * sstep(0.2, burst, tb) * Math.sin(tb * 150) + 0.025 * hit * Math.sin((tb - burst) * 110),
-      gain: 1 + 0.9 * sstep(0, 0.45, tb) + 1.9 * hit,
-      stars: 1,
-      ringW: 1 + 1.5 * fall,
-      roll: (12 + 55 * fall ** 1.3 + 8 * reach) * DEG, // the spin keeps speeding up
-      zoom: REST_ZOOM * (PLUNGE_ZOOM / REST_ZOOM) ** fall * (1 + 0.22 * hit),
-      pinch: 7 * sstep(0.1, burst, tb) * (1 - 0.6 * reach), // the sky is dragged in, then let go as the blast passes
-      iris: 1,
-      black: tb >= 0.97,
-      caustic: false,
-      waveR: tb < burst ? -1 : reach * WAVE_REACH,
-      waveAmp: 1 - sstep(0.8, 1, reach),
-      orbs: tb < burst ? 1 - sstep(0.3, 0.75, fall) : 1 - sstep(0, 0.3, reach), // the disk is blown away as the ring passes it
-      cloud: 1 - 0.75 * sstep(0.1, burst, tb), // the plasma calms down instead of being whipped up with everything else
-    };
-  }
-  if (EXPLOSION_STYLE === "shockwave") {
-    // the view pulls back for a moment, then the ring bursts out and slows as it spreads
-    const burst = 0.12;
-    const w = Math.min(Math.max((tb - burst) / 0.78, 0), 1);
-    const reach = 1 - (1 - w) ** 2.4; // 0..1
-    const hit = sstep(burst - 0.02, burst + 0.01, tb) * Math.exp(-Math.max(tb - burst, 0) * 9); // the punch of the blast
-    return {
-      t,
-      tb,
-      fall: tb < burst ? 0 : 0.3 + 0.45 * Math.min(reach / 0.4, 1), // only used to fade out the orb disk as the ring passes it
-      pull: 0.07 * Math.sin(Math.PI * Math.min(tb / burst, 1)) * (tb < burst ? 1 : 0),
-      shake: 0.035 * hit * Math.sin((tb - burst) * 110),
-      gain: 1 + 1.6 * sstep(0, burst, tb) * (1 - sstep(burst, 0.55, tb)),
-      stars: 1,
-      ringW: 1 + 0.8 * hit,
-      roll: (12 + 6 * reach) * DEG,
-      zoom: REST_ZOOM * (1 + 0.3 * hit), // the whole view jumps toward you on impact
-      pinch: 0,
-      iris: 1,
-      black: tb >= 0.93,
-      caustic: false,
-      waveR: tb < burst ? -1 : reach * WAVE_REACH,
-      waveAmp: 1 - sstep(0.7, 1, reach),
-      orbs: 1 - sstep(0.3, 0.75, tb < burst ? 0 : 0.3 + 0.45 * Math.min(reach / 0.4, 1)),
-      cloud: 1,
-    };
-  }
-  if (EXPLOSION_STYLE === "fall") {
-    const fall = Math.min(tb / 0.95, 1) ** 2;
-    return {
-      t,
-      tb,
-      fall,
-      pull: 0.07 * Math.sin(Math.PI * Math.min(tb / 0.14, 1)) * (tb < 0.14 ? 1 : 0),
-      shake: 0.014 * sstep(0.3, 0.85, tb) * Math.sin(tb * 150), // a tremor that grows as it falls
-      // brightness: a steady rise, then a bloom of light just before the iris closes it to black
-      gain: 1 + 0.9 * sstep(0, 0.45, tb) + 1.7 * sstep(0.55, 0.82, tb) * (1 - sstep(0.86, 0.97, tb)),
-      stars: 1 - sstep(0.7, 0.92, tb), // the stars stay, and get pulled in
-      ringW: 1 + 1.5 * fall,
-      roll: (12 + 40 * fall) * DEG,
-      zoom: REST_ZOOM * (PLUNGE_ZOOM / REST_ZOOM) ** fall,
-      pinch: 12 * sstep(0.12, 0.85, tb), // the sky is squeezed toward the centre (see main() in the shader)
-      iris: 1 - sstep(0.58, 0.97, tb), // radius of what is still lit, 1 = the whole frame, 0 = nothing
-      black: tb >= 0.985, // nothing left to draw
-      caustic: false,
-      waveR: -1,
-      waveAmp: 0,
-      orbs: 1 - sstep(0.3, 0.75, fall),
-      cloud: 1,
-    };
-  }
-  const fall = Math.min(tb / 0.48, 1) ** 2.2;
+  // 0 - 0.1 the view pulls back; 0.1 - 0.5 it plunges toward the shadow while the sky is dragged in and spun;
+  // 0.5 the blast: a ring tears out of the shadow and sweeps the screen clear; 0.93 black
+  const burst = 0.5;
+  const fall = Math.min(tb / 0.95, 1) ** 2;
+  const w = Math.min(Math.max((tb - burst) / 0.46, 0), 1);
+  const reach = 1 - (1 - w) ** 1.7;
+  const hit = sstep(burst - 0.02, burst + 0.01, tb) * Math.exp(-Math.max(tb - burst, 0) * 7);
   return {
     t,
     tb,
     fall,
-    // anticipation: the view pulls back for a moment before it plunges, and the bloom of light shakes the frame
-    pull: 0.07 * Math.sin(Math.PI * Math.min(tb / 0.14, 1)) * (tb < 0.14 ? 1 : 0),
-    shake: 0.03 * Math.exp(-Math.max(tb - 0.36, 0) * 14) * sstep(0.34, 0.37, tb) * Math.sin((tb - 0.36) * 95),
-    gain: 1 + 0.9 * sstep(0, 0.35, tb),
-    stars: 1 - sstep(0.1, 0.4, tb),
+    pull: 0.07 * Math.sin(Math.PI * Math.min(tb / 0.1, 1)) * (tb < 0.1 ? 1 : 0),
+    // a tremor that grows during the plunge, then the jolt of the blast
+    shake: 0.008 * sstep(0.2, burst, tb) * Math.sin(tb * 150) + 0.025 * hit * Math.sin((tb - burst) * 110),
+    gain: 1 + 0.9 * sstep(0, 0.45, tb) + 1.9 * hit,
+    stars: 1,
     ringW: 1 + 1.5 * fall,
-    roll: (12 + 30 * fall) * DEG,
-    zoom: REST_ZOOM * (PLUNGE_ZOOM / REST_ZOOM) ** fall,
-    pinch: 0,
-    iris: 1,
-    black: false,
-    caustic: true,
-    waveR: -1,
-    waveAmp: 0,
-    orbs: 1 - sstep(0.3, 0.75, fall),
-    cloud: 1,
+    roll: (12 + 55 * fall ** 1.3 + 8 * reach) * DEG, // the spin keeps speeding up
+    zoom: REST_ZOOM * (PLUNGE_ZOOM / REST_ZOOM) ** fall * (1 + 0.22 * hit),
+    pinch: 7 * sstep(0.1, burst, tb) * (1 - 0.6 * reach), // the sky is dragged in, then let go as the blast passes
+    black: tb >= 0.97,
+    waveR: tb < burst ? -1 : reach * WAVE_REACH,
+    waveAmp: 1 - sstep(0.8, 1, reach),
+    orbs: tb < burst ? 1 - sstep(0.3, 0.75, fall) : 1 - sstep(0, 0.3, reach), // the disk is blown away as the ring passes it
+    cloud: 1 - 0.75 * sstep(0.1, burst, tb), // the plasma calms down instead of being whipped up with everything else
   };
 }
 

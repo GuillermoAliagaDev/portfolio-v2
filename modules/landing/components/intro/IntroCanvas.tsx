@@ -1,11 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AsciiGrid } from "@/components/ascii/AsciiGrid";
 import { DotMatrix } from "@/components/ascii/DotMatrix";
 import { createPixelSampler, frameStamp } from "@/components/ascii/pixelSampler";
 import { useInView } from "@/hooks/useInView";
 import { canUseWebGL } from "@/lib/canUseWebGL";
-import { CELL_H, CELL_W } from "../../constants/asciiCell";
 import { useAdaptiveQuality } from "../../hooks/useAdaptiveQuality";
 import { useBlackHole } from "../../hooks/useBlackHole";
 import { useOrbModel } from "../../hooks/useOrbModel";
@@ -13,12 +11,9 @@ import { useIntroSequence } from "../../hooks/useIntroSequence";
 import { useOrbitGesture } from "../../hooks/useOrbitGesture";
 import { IntroHeadline } from "./IntroHeadline";
 
-// Two separate layers read the same picture, each one a different part of it:
-//   - pixels: the black hole itself (disk, ring, explosion) as 1-bit halftone dots, like a dithered print
-//   - ascii: the sky behind it (stars, sparkles, gas band) as text characters
-const SKY_RAMP = " .:-=+*#%@";
-// How the sky is drawn: "pixels" = 1-bit dots like the black hole, "ascii" = text characters. Flip to compare.
-const SKY_LAYER: "pixels" | "ascii" = "pixels";
+// Two separate layers read the same picture, each one a different part of it, both as 1-bit halftone dots:
+//   - red channel: the black hole itself (disk, ring, explosion)
+//   - green channel: the sky behind it (stars, sparkles, gas band)
 // sky colours by hue index (the shader gives every object one): white, blue-white, blue, cyan, turquoise, green, purple,
 // pink, salmon, orange - like the colours in a deep-field telescope image. The plasma clouds use 0.2 .. 0.5.
 const SKY_HUES = [
@@ -94,7 +89,7 @@ export function IntroCanvas({ onRevealed }: { onRevealed?: () => void }) {
     phaseRef.current = phase;
   }, [phase]);
   const readyRef = useRef(false);
-  // the ASCII text and the dot layer read the same picture: render it once per animation frame and share it
+  // the two dot layers read the same picture: render it once per animation frame and share it
   const shared = useRef<{ at: number; canvas: HTMLCanvasElement | null }>({ at: -1, canvas: null });
   const getSource = useCallback(() => {
     if (phaseRef.current === "revealed") return null;
@@ -144,30 +139,18 @@ export function IntroCanvas({ onRevealed }: { onRevealed?: () => void }) {
             shimmer={0.18}
             className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-1000 ${ready || reduced ? "opacity-100" : "opacity-0"}`}
           />
-          {SKY_LAYER === "pixels" ? (
-            <DotMatrix
-              getSource={getSource}
-              running={live && inView}
-              channel="green"
-              pitch={quality >= 2 ? DOT_PITCH_LIGHT : DOT_PITCH}
+          <DotMatrix
+            getSource={getSource}
+            running={live && inView}
+            channel="green"
+            pitch={quality >= 2 ? DOT_PITCH_LIGHT : DOT_PITCH}
             sampler={sampler}
             maxFps={quality >= 2 ? 30 : 0}
-              hues={SKY_HUES}
-              shimmer={0.15}
-              gamma={0.7}
-              className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-1000 ${ready || reduced ? "opacity-100" : "opacity-0"}`}
-            />
-          ) : (
-            <AsciiGrid
-              getSource={getSource}
-              running={live && inView}
-              channel="green"
-              ramp={SKY_RAMP}
-              cellWidth={CELL_W}
-              cellHeight={CELL_H}
-              className={`absolute inset-0 overflow-hidden transition-opacity duration-1000 ${ready || reduced ? "opacity-100" : "opacity-0"}`}
-            />
-          )}
+            hues={SKY_HUES}
+            shimmer={0.15}
+            gamma={0.7}
+            className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-1000 ${ready || reduced ? "opacity-100" : "opacity-0"}`}
+          />
         </>
       )}
 
