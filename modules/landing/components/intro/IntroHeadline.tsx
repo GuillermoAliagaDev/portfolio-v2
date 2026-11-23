@@ -21,7 +21,7 @@ const WORD_START_MS = FIRST_LETTER_MS + HEADLINE_LINES.reduce((sum, line) => sum
 type LettersProps = { text: string; className: string; start?: number; step?: number };
 
 // one span per letter so each can move on its own, a little later than the one before it
-function Letters({ text, className, start = 0, step = LETTER_STAGGER_MS }: LettersProps) {
+export function Letters({ text, className, start = 0, step = LETTER_STAGGER_MS }: LettersProps) {
   return (
     <>
       {[...text].map((ch, i) => (

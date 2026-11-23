@@ -51,7 +51,7 @@ const DOT_PALETTE = [
 //   "lensing" = the lensing shader on its own: the fallback if the orb model cannot load (also at /?hole=lensing for testing)
 type HoleModel = "orbs" | "lensing";
 
-export function IntroCanvas() {
+export function IntroCanvas({ onRevealed }: { onRevealed?: () => void }) {
   const ref = useRef<HTMLElement>(null);
   const label = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref);
@@ -84,6 +84,10 @@ export function IntroCanvas() {
   useEffect(() => {
     if (phase === "exploding") startBoom();
   }, [phase, startBoom]);
+
+  useEffect(() => {
+    if (phase === "revealed") onRevealed?.(); // the black screen at the end of the explosion hands over to the next screen
+  }, [phase, onRevealed]);
 
   const phaseRef = useRef(phase);
   useEffect(() => {
